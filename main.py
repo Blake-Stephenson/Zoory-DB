@@ -6,7 +6,8 @@ import pymongo
 import os
 import dns
 
-print("working?")
+print("working?*")
+print("bruh2")
 
 
 def dbConnect():
@@ -31,13 +32,20 @@ def dbConnect():
 
 def dbUpdate(collection):
   # Sample 2D array-like data
-  rows = 4
-  cols = 5
-  data = [[1 for j in range(cols)] for i in range(rows)]
+  rows = 10
+  cols = 10
+  data = [[0 for j in range(cols)] for i in range(rows)]
 
   # Insert the 2D array-like data into MongoDB
   collection.update_one({}, {"$set": {"build1": data}})
   return collection.find({})
+
+
+def dbUpdateCell(collection, row, column, new_value):
+  # Update the cell value in the MongoDB collection
+  collection.update_one({}, {"$set": {f"build1.{row}.{column}": new_value}})
+  print("dbUpCell", collection.find({})[0])
+  return collection.find({})[0]
 
 
 def dbPrint(collection):
@@ -48,14 +56,13 @@ def dbPrint(collection):
 
 
 collection = dbConnect()
-tables = dbUpdate(collection)
+
+tables = collection.find({})
 for document in tables:
   lastTable = {'table': document['build1']}
   print(lastTable)
   print('****')
 
-print(type(lastTable))
-print(lastTable)
 # Convert Python dictionary to JSON
 json_data = json.dumps(lastTable)
 print(json_data)
@@ -70,14 +77,35 @@ host = "0.0.0.0"
 CORS(app)
 
 
+#home page
 @app.route('/')
 def index():
   return render_template("index.html")
 
 
-@app.route('/data', methods=['GET'])
-def data():
-  return json_data
+#send board data out
+@app.route('/board', methods=['GET', 'POST'])
+def board():
+  if request.method == 'POST':
+    print("again", json.dumps({'table': collection.find({})[0]['build1']}))
+    return json.dumps({'table': collection.find({})[0]['build1']})
+  return json.dumps({'table': collection.find({})[0]['build1']})
+
+
+@app.route('/move', methods=['GET', 'POST'])
+def receive_integer():
+  if request.method == 'POST':
+    try:
+      received_data = (request.json)
+      print(received_data)
+      lastTable = dbUpdateCell(collection, received_data["row"],
+                               received_data["column"], received_data["state"])
+      json_data = json.dumps({'table': lastTable['build1']})
+
+      return {"msg": "got it"}
+    except ValueError:
+      return "Invalid input. Please enter a valid integer."
+  return "gimme"
 
 
 #This just sets the required params such as the host to run on and port to run on and if debug is on.
